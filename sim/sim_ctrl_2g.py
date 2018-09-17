@@ -326,7 +326,10 @@ class SimCtrl(object):
         if not code:
             code = sim_codes.defaultCard[pinId]
         #VERIFY
-        code = types.addTrailingBytes(code.encode("hex"), 0xFF, 8)
+        if len(code) == 16:
+            code = code.upper()
+        else:
+            code = types.addTrailingBytes(code.encode("hex"), 0xFF, 8)
         sw1, sw2, data = self.sendApdu("A0%02X00%02X%02X%s%s" %(verify, chvP2, length, code, newCode))
         sw1Name, swName = types.swName(sw1, sw2)
         if swName == 'NO_ERROR' or sw1 == types_g.sw1.NO_ERROR_PROACTIVE_DATA:
