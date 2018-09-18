@@ -200,24 +200,27 @@ class SimShell(object):
         self.forceCodes = int(state)
         return self.responseOk()
 
-    def verify_code(self, name):
+    def verify_code(self, name, code=""):
         """Verify security code. If force_security_codes is 1, then default
         security codes will be used for verification if there is maximum
         number of attemps left.
 
         Usage:
-            verify_code code
+            verify_code name [code]
 
         Args:
-            code: pin1|pin2|puk1|puk2|adm1|adm4
+            name: pin1|pin2|puk1|puk2|adm1|adm4
+            code: ascii string, or 16 hex bytes
 
         Returns:
             status: OK|NOK
 
         Example::
 
-            />verify_code pin1
+            />verify_code pin1 1234
         """
+        if code == "":
+            code = None
         name = name.lower()
         if name == "pin1":
             pinId = sim_codes.PIN_1
@@ -233,7 +236,7 @@ class SimShell(object):
             pinId = sim_codes.ADM_4
         else:
             return self.responseNok("Unknown code %s" %name)
-        status = self.verifyCode(pinId)
+        status = self.verifyCode(pinId, code)
         if not status:
             return self.responseNok()
         return self.responseOk()
@@ -988,7 +991,7 @@ class SimShell(object):
         else:
             return False
 
-    def verifyCode(self, pinId):
+    def verifyCode(self, pinId, code):
         if pinId in [sim_codes.PIN_1, sim_codes.PIN_1_ENABLE, sim_codes.PIN_1_DISABLE]:
             attemptsMax = 3
             attemptsLeft = self.simCtrl.pin1Status()
@@ -1029,17 +1032,18 @@ class SimShell(object):
             #ADM1 might have max attempts 10
             attemptsMax = 10
 
-        if pinId not in [sim_codes.PIN_1_ENABLE, sim_codes.PIN_1_DISABLE]:
-            code = sim_codes.defaultCard[pinId]
-        else:
-            code = sim_codes.defaultCard[sim_codes.PIN_1]
-
-        if not self.forceCodes or attemptsLeft < attemptsMax:
-            if not self.interactive:
-                logging.warning("Security condition not satisfied, %s required. Attempts left: %d/%d. Default code:%s" %(codeName, attemptsLeft, attemptsMax, code))
-                return None
-            code = self.queryUser(("Security condition not satisfied, %s required. Attempts left: %d/%d.\nTry code %s=%s"
-                                   %(codeName, attemptsLeft, attemptsMax, codeName, code)), code)
+        if not code:
+            if pinId not in [sim_codes.PIN_1_ENABLE, sim_codes.PIN_1_DISABLE]:
+               code = sim_codes.defaultCard[pinId]
+            else:
+                code = sim_codes.defaultCard[sim_codes.PIN_1]
+   
+            if not self.forceCodes or attemptsLeft < attemptsMax:
+                if not self.interactive:
+                    logging.warning("Security condition not satisfied, %s required. Attempts left: %d/%d. Default code:%s" %(codeName, attemptsLeft, attemptsMax, code))
+                    return None
+                code = self.queryUser(("Security condition not satisfied, %s required. Attempts left: %d/%d.\nTry code %s=%s"
+                                       %(codeName, attemptsLeft, attemptsMax, codeName, code)), code)
         if not code:
             return False
         return self.simCtrl.verifyCode(pinId, code)
